@@ -225,6 +225,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.2.6"
+  elastic_client:
+    dependency: "direct main"
+    description:
+      name: elastic_client
+      sha256: bf5b2dd3b9b7b6b81449d67d809776fab5b58678f6ad9c2bd1eb4f9e4695fcbd
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.3.15"
   equatable:
     dependency: "direct main"
     description:
@@ -233,6 +241,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.1.0"
+  executor:
+    dependency: transitive
+    description:
+      name: executor
+      sha256: "1a852bcb44c6425a93443be2fb4da13ea03b5cba89e4e2ae1072b8a53c69b405"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.5"
   fake_async:
     dependency: transitive
     description:
@@ -448,6 +464,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.0"
+  http_client:
+    dependency: transitive
+    description:
+      name: http_client
+      sha256: f62a0ec75b41e75acb228eee759d4a838086449548f1dd78ac0751b551f9a632
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.5.3"
   http_multi_server:
     dependency: transitive
     description:
@@ -808,6 +832,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.6.0"
+  redis:
+    dependency: "direct main"
+    description:
+      name: redis
+      sha256: d7c7f18a374936baa786baf5f0e747aa5510bb289aad44b30ec41e3b703233b4
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.1.0"
   rxdart:
     dependency: "direct main"
     description:

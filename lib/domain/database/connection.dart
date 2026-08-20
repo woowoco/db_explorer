@@ -254,6 +254,140 @@ enum PostgresSslMode {
       };
 }
 
+/// Redis connection profile.
+///
+/// Redis authentication modeli:
+/// - Default: şifre yok (Redis 6 öncesi davranış)
+/// - Redis 6+: ACL sistemi (username + password). Legacy `requirepass` desteği
+///   için password tek başına yeterli — username null olursa legacy mode'a
+///   geçer (`AUTH <password>`).
+///
+/// Veritabanı (dbIndex): 0-15 default. Cluster mode'da tüm node'lar aynı
+/// dbIndex'i paylaşır (cluster-aware routing RedisDBProvider'da ileride).
+class RedisConnectionProfile extends DatabaseConnectionConfig {
+  const RedisConnectionProfile({
+    required super.id,
+    required super.label,
+    required super.host,
+    super.port = 6379,
+    super.username,
+    this.password,
+    this.dbIndex = 0,
+    this.useTls = false,
+    this.connectTimeoutSeconds,
+    super.options,
+  });
+
+  /// Şifre (legacy `requirepass` veya ACL password).
+  final String? password;
+
+  /// Default database index (0-15 default Redis'te; cluster'da tüm node'lar).
+  final int dbIndex;
+
+  /// TLS/SSL bağlantısı (redis:// vs rediss://).
+  final bool useTls;
+
+  /// TCP bağlantı zaman aşımı (saniye). null = driver default.
+  final int? connectTimeoutSeconds;
+
+  @override
+  DatabaseKind get kind => DatabaseKind.redis;
+
+  RedisConnectionProfile copyWith({
+    String? id,
+    String? label,
+    String? host,
+    int? port,
+    String? username,
+    String? password,
+    int? dbIndex,
+    bool? useTls,
+    int? connectTimeoutSeconds,
+    Map<String, String>? options,
+  }) {
+    return RedisConnectionProfile(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      host: host ?? this.host,
+      port: port ?? this.port,
+      username: username ?? this.username,
+      password: password ?? this.password,
+      dbIndex: dbIndex ?? this.dbIndex,
+      useTls: useTls ?? this.useTls,
+      connectTimeoutSeconds:
+          connectTimeoutSeconds ?? this.connectTimeoutSeconds,
+      options: options ?? this.options,
+    );
+  }
+}
+
+/// Elasticsearch connection profile.
+///
+/// Auth modeli (Phase 6):
+/// - `username` + `password` (basic auth — default ES security)
+/// - `apiKey` (base64 encoded "id:api_key") — REST API için önerilen
+///
+/// Eğer `apiKey` set edilirse `username`/`password` override edilir.
+/// `scheme`: http (default dev) veya https (production).
+///
+/// `databaseName` ES'te "index" olarak kullanılır (UI'da gözükecek).
+class ElasticsearchConnectionProfile extends DatabaseConnectionConfig {
+  const ElasticsearchConnectionProfile({
+    required super.id,
+    required super.label,
+    required super.host,
+    super.port = 9200,
+    this.scheme = 'http',
+    super.username,
+    this.password,
+    this.apiKey,
+    this.requestTimeoutSeconds,
+    super.options,
+  });
+
+  /// http (default dev) veya https (production).
+  final String scheme;
+
+  /// Basic auth password.
+  final String? password;
+
+  /// API key (`base64(id:api_key)`). Set edilirse basic auth override.
+  final String? apiKey;
+
+  /// Per-request timeout (saniye). null = driver default (1 min).
+  final int? requestTimeoutSeconds;
+
+  @override
+  DatabaseKind get kind => DatabaseKind.elasticsearch;
+
+  ElasticsearchConnectionProfile copyWith({
+    String? id,
+    String? label,
+    String? host,
+    int? port,
+    String? scheme,
+    String? username,
+    String? password,
+    String? apiKey,
+    int? requestTimeoutSeconds,
+    Map<String, String>? options,
+  }) {
+    return ElasticsearchConnectionProfile(
+      id: id ?? this.id,
+      label: label ?? this.label,
+      host: host ?? this.host,
+      port: port ?? this.port,
+      scheme: scheme ?? this.scheme,
+      username: username ?? this.username,
+      password: password ?? this.password,
+      apiKey: apiKey ?? this.apiKey,
+      requestTimeoutSeconds:
+          requestTimeoutSeconds ?? this.requestTimeoutSeconds,
+      options: options ?? this.options,
+    );
+  }
+}
+
 /// Sealed connection state — provider implementasyonu emit eder.
 ///
 /// Her alt sınıf, UI'ın connection panelinde gösterebileceği structured

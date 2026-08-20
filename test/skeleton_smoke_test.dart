@@ -13,12 +13,15 @@ void main() {
       registerBuiltinProviders();
     });
 
-    test('MongoDB + Postgres provider factories registered', () {
+    test('All 4 kind provider factories registered', () {
       final registry = DatabaseProviderRegistry.instance;
       expect(registry.isRegistered(DatabaseKind.mongodb), isTrue);
       // Phase 5: PostgreSQL mock factory de kayıtlı (Phase 8'de real override).
       expect(registry.isRegistered(DatabaseKind.postgres), isTrue);
-      expect(registry.all.length, 2);
+      // Phase 6: Redis + Elasticsearch mock factory'ler.
+      expect(registry.isRegistered(DatabaseKind.redis), isTrue);
+      expect(registry.isRegistered(DatabaseKind.elasticsearch), isTrue);
+      expect(registry.all.length, 4);
     });
 
     test('MongoDB provider has correct capabilities', () {
