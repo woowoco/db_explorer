@@ -1,0 +1,23 @@
+# Normalize line endings for Flutter's auto-generated platform glue so
+# `git status` doesn't flag them as modified on Windows checkouts
+# (LF in index, LF in working tree, but autocrlf=true re-checks them).
+
+# Generated plugin registrants on each platform shell.
+linux/flutter/generated_plugin_registrant.cc     text eol=lf
+linux/flutter/generated_plugin_registrant.h     text eol=lf
+linux/flutter/generated_plugins.cmake           text eol=lf
+macos/Flutter/GeneratedPluginRegistrant.swift   text eol=lf
+windows/flutter/generated_plugin_registrant.cc  text eol=lf
+windows/flutter/generated_plugin_registrant.h   text eol=lf
+windows/flutter/generated_plugins.cmake        text eol=lf
+
+# Dart + Flutter sources default to LF regardless of host OS.
+*.dart                                       text eol=lf
+*.yaml                                       text eol=lf
+*.yml                                        text eol=lf
+*.md                                         text eol=lf
+
+# Native + shell scripts must keep LF to stay executable on Unix-like CI.
+*.sh                                         text eol=lf
+*.gradle                                     text eol=lf
+*.cmake                                      text eol=lf

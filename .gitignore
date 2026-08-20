@@ -50,3 +50,12 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 ## FLUTTER
+
+# Hooks runner + native-asset cache (covered above by .dart_tool/, but pinned
+# explicitly here for clarity when the cache lives outside the project).
+.dart_tool/hooks_runner/
+.dart_tool/native_assets/
+
+# Local-only Claude Code workspace metadata (machine-specific paths).
+# Keep CLAUDE.md (project doc) tracked; ignore the per-session scratch files.
+.claude/
