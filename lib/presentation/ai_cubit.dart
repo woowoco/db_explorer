@@ -1,3 +1,4 @@
+import 'package:db_explorer_app/infrastructure/registry/ai_provider_registry.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -34,9 +35,11 @@ class AiState extends Equatable {
 
 /// AI provider availability durumunu tutan cubit.
 ///
-/// Phase 0'da stub: default olarak 'disabled' provider loaded olarak
-/// işaretlenir. Phase 7'de registry'den available provider'lar probe
-/// edilir.
+/// Phase 8'de `AiProviderRegistry` ile bağlandı: `refresh()` çağrıldığında
+/// registry'de bulunan `defaultProvider()` (ilk available provider)
+/// probe edilir ve state güncellenir. `AppBootstrap.fullInitialize()`
+/// tarafından bir kez çağrılır; kullanıcı Settings'te `aiMode`'u
+/// değiştirdiğinde tekrar çağrılabilir.
 class AiCubit extends Cubit<AiState> {
   AiCubit() : super(AiState.initial);
 
@@ -53,5 +56,22 @@ class AiCubit extends Cubit<AiState> {
 
   void markError(String message) {
     emit(AiState(status: AiStatus.error, lastError: message));
+  }
+
+  /// Registry'yi probe et → ilk available provider'ı yansıt.
+  ///
+  /// Async IO olabilir (network ping vs.); hata durumunda state `error`
+  /// emit eder, uygulama çökmez.
+  Future<void> refresh(AiProviderRegistry registry) async {
+    try {
+      final provider = await registry.defaultProvider();
+      if (provider == null) {
+        markUnavailable();
+      } else {
+        markLoaded(provider.id);
+      }
+    } catch (e) {
+      markError('AI probe failed: $e');
+    }
   }
 }

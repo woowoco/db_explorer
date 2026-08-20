@@ -61,6 +61,11 @@ class AppBootstrap {
     final defaultProvider = await aiRegistry.defaultProvider();
     log.i('AI default provider: ${defaultProvider?.id ?? 'none'}');
 
+    // Phase 8.3 — AiCubit'i registry probe'una bağla (app-level state).
+    await getIt<AiCubit>().refresh(aiRegistry);
+    log.i('AiCubit state: ${getIt<AiCubit>().state.status.name} '
+        '${getIt<AiCubit>().state.activeProviderId ?? ''}');
+
     // Database providers smoke
     final dbRegistry = getIt<DatabaseProviderRegistry>();
     log.i('Database providers: ${dbRegistry.all.map((f) => f.kind.name).join(', ')}');
