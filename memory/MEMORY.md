@@ -1,0 +1,3 @@
+- [db_explorer_app project context](project-db-explorer-app.md) — Flutter database workbench + AI query assistant; brief 33 madde
+- [F_AISUBCRIBE design language](faisubcribe-design-language.md) — Poppins + DeepPurple + flat + ThemeExtension yapısı; yeni projeler için tasarım referansı
+- [Phase 7 AI package research](phase-7-ai-package-research.md) — llm_llamacpp + ollama_dart + openai_dart kararları

@@ -1,23 +1,64 @@
-import 'dart:math';
+// ignore_for_file: prefer_initializing_formals
+//
+// `prefer_initializing_formals` cannot be satisfied for private fields
+// (Dart requires the constructor parameter to start with `this.` which
+// must match a public-or-private field; private fields like
+// `_repositoryFactory` can't be referenced via `this._repositoryFactory`
+// in an initializing formal).
+
+import 'dart:async';
+import 'dart:io';
 
 import 'package:db_explorer_app/core/utils/app_error.dart';
 import 'package:db_explorer_app/core/utils/app_logger.dart';
 import 'package:db_explorer_app/domain/ai/ai_provider.dart';
+import 'package:db_explorer_app/infrastructure/ai_providers/ai_prompt_builder.dart';
+import 'package:llm_llamacpp/llm_llamacpp.dart';
 
-/// Local llama.cpp (llamadart / llm_llamacpp) provider — Phase 1 fake.
+/// Local llama.cpp provider — Phase 7 real implementation.
 ///
-/// Gerçek model yükleme Phase 7'de yapılacak. Phase 1'de:
-/// - isAvailable: modelPath konfigüre edilmişse true, aksi false
-/// - complete: gelen request'e göre canned response (echo + structured intent)
+/// `llm_llamacpp` paketi ile cross-platform (Android/iOS/macOS/Windows/Linux)
+/// GGUF inference yapar. Model dosyası (`modelPath`) zorunludur; isolation-
+/// based inference sayesinde UI thread bloklanmaz.
 ///
-/// Güvenlik: write yeteneği olan collectionlar için sorgu üretmez; sadece
-/// read-only sorgular (find/aggregate/explain) önerir.
+/// Güvenlik (brief 11, 14):
+/// - AI asla write/DDL sorgu önermez (write-intent guard).
+/// - AI context = schema-only (NO document values, NO credentials).
+/// - Api key / endpoint OLMAYAN local provider; DÖH (data-on-host) riski az.
 class LocalLlamaCppProvider implements AiQueryProvider {
-  LocalLlamaCppProvider({this.modelPath});
+  LocalLlamaCppProvider({
+    this.modelPath,
+    this.contextSize = 2048,
+    this.nGpuLayers = 0,
+    this.temperature = 0.2,
+    this.maxTokens = 1024,
+    Future<LlamaCppChatRepository> Function()? repositoryFactory,
+  }) : _repositoryFactory = repositoryFactory;
 
+  /// GGUF model dosya yolu (örn. `/models/qwen2.5-coder-3b-q4_k_m.gguf`).
   final String? modelPath;
 
+  /// Context size (token). Varsayılan 2048 — küçük modeller için güvenli.
+  final int contextSize;
+
+  /// GPU'ya offload edilen layer sayısı (0 = CPU-only).
+  final int nGpuLayers;
+
+  /// Sampling temperature (0.0 = deterministic, yüksek = yaratıcı).
+  /// Kod üretimi için düşük (0.2) tercih edildi.
+  final double temperature;
+
+  /// Üretilecek maksimum token sayısı.
+  final int maxTokens;
+
+  /// Test seam — gerçek implementasyonu değiştirir.
+  final Future<LlamaCppChatRepository> Function()? _repositoryFactory;
+
   final _log = getLogger('LocalLlamaCpp');
+
+  LlamaCppChatRepository? _repository;
+  bool _isLoading = false;
+  bool _disposed = false;
 
   @override
   String get id => 'local_llamacpp';
@@ -27,7 +68,53 @@ class LocalLlamaCppProvider implements AiQueryProvider {
 
   @override
   Future<bool> isAvailable() async {
-    return modelPath != null && modelPath!.isNotEmpty;
+    if (modelPath == null || modelPath!.isEmpty) return false;
+    final file = File(modelPath!);
+    return file.existsSync();
+  }
+
+  Future<LlamaCppChatRepository> _ensureRepository() async {
+    if (_disposed) {
+      throw const AiFailure('Local model provider is disposed.');
+    }
+    final cached = _repository;
+    if (cached != null) return cached;
+    if (_isLoading) {
+      // Concurrent load isteği — bekle.
+      while (_isLoading && _repository == null) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      final loaded = _repository;
+      if (loaded != null) return loaded;
+    }
+    _isLoading = true;
+    try {
+      _log.i('Loading local model: $modelPath '
+          '(contextSize=$contextSize, nGpuLayers=$nGpuLayers)');
+      final repo = _repositoryFactory != null
+          ? await _repositoryFactory()
+          : LlamaCppChatRepository(
+              contextSize: contextSize,
+              nGpuLayers: nGpuLayers,
+            );
+      // ignore: deprecated_member_use
+      // The deprecated `loadModel` is the simpler self-contained path; the
+      // replacement (`LlamaCppRepository.loadModel()` + `withModel`) requires
+      // additional lifecycle management that we don't need for unit tests.
+      // ignore: deprecated_member_use
+      await repo.loadModel(modelPath!);
+      _repository = repo;
+      _log.i('Local model loaded successfully.');
+      return repo;
+    } on ModelLoadException catch (e) {
+      throw AiFailure('Failed to load GGUF model: ${e.message}', cause: e);
+    } on BackendInitException catch (e) {
+      throw AiFailure('llama.cpp backend init failed: ${e.message}', cause: e);
+    } catch (e) {
+      throw AiFailure('Unexpected error loading local model: $e', cause: e);
+    } finally {
+      _isLoading = false;
+    }
   }
 
   @override
@@ -40,124 +127,60 @@ class LocalLlamaCppProvider implements AiQueryProvider {
         'Local model not configured. Set model path in Settings.',
       );
     }
-
-    // Mock latency: 200-600ms.
-    await Future<void>.delayed(
-      Duration(milliseconds: 200 + Random().nextInt(400)),
-    );
-
-    _log.i('Mock complete: task=${request.task} message="${request.userMessage}"');
-
-    // Write-context güvenlik kontrolü (brief madde 11).
-    final dangerousCollection = _containsWriteTarget(request);
-    if (dangerousCollection != null) {
-      return AiCompletion(
-        message: 'Cannot suggest query on writeable collection '
-            '"$dangerousCollection" — AI only generates read-only queries.',
-        suggestedQuery: '',
-        explanation: 'Refusing to generate INSERT/UPDATE/DELETE/DDL on '
-            '"$dangerousCollection" per AI safety policy.',
-        warnings: const ['Write query rejected by safety policy'],
+    if (!File(modelPath!).existsSync()) {
+      throw AiFailure(
+        'GGUF model file not found at: $modelPath. '
+        'Download a model or update Settings.',
       );
     }
 
-    switch (request.task) {
-      case AiTask.generate:
-        return _mockGenerate(request);
-      case AiTask.modify:
-        return _mockModify(request);
-      case AiTask.explain:
-        return _mockExplain(request);
-      case AiTask.optimize:
-        return _mockOptimize(request);
-      case AiTask.fix:
-        return _mockFix(request);
-    }
-  }
+    // 1. Write-intent guard.
+    final guard = AiPromptBuilder.preflight(request);
+    if (guard != null) return guard;
 
-  // ─── Mock implementations per task ─────────────────────────────────
-  AiCompletion _mockGenerate(AiRequest req) {
-    final collections = req.context.databases
-        .expand((db) => db.collections.map((c) => c.name))
-        .toList();
-    final firstColl = collections.isNotEmpty ? collections.first : 'users';
+    // 2. Model yükle (lazy).
+    final repo = await _ensureRepository();
 
-    final lower = req.userMessage.toLowerCase();
-    String suggestedQuery;
-    String explanation;
+    // 3. Chat messages kur.
+    final messages = AiPromptBuilder.buildChatMessages(request);
 
-    if (lower.contains('count')) {
-      suggestedQuery = 'db.$firstColl.count()';
-      explanation = 'Counts total documents in $firstColl collection.';
-    } else if (lower.contains('find one') || lower.contains('first')) {
-      suggestedQuery = 'db.$firstColl.findOne()';
-      explanation = 'Returns the first document in $firstColl.';
-    } else {
-      suggestedQuery = 'db.$firstColl.find()';
-      explanation = 'Returns all documents in $firstColl. Add filter() to narrow.';
-    }
-
-    return AiCompletion(
-      message: 'Mock generated query (no real inference).',
-      suggestedQuery: suggestedQuery,
-      explanation: explanation,
-      warnings: const ['Local mock provider — real LLM comes in Phase 7'],
-    );
-  }
-
-  AiCompletion _mockModify(AiRequest req) {
-    final existing = req.existingQuery ?? '';
-    final modified = '$existing /* limit 10 */'.trim();
-    return AiCompletion(
-      message: 'Mock modified: appended limit 10 hint.',
-      suggestedQuery: modified,
-      explanation: 'This is a placeholder modification; real LLM integration '
-          'will replace with semantic-aware refactoring.',
-    );
-  }
-
-  AiCompletion _mockExplain(AiRequest req) {
-    final q = req.existingQuery ?? '';
-    return AiCompletion(
-      message: 'Mock explanation.',
-      suggestedQuery: q,
-      explanation: 'Query runs against the schema collections. Real LLM '
-          'will provide collection-specific field-by-field analysis.',
-    );
-  }
-
-  AiCompletion _mockOptimize(AiRequest req) {
-    final q = req.existingQuery ?? '';
-    return AiCompletion(
-      message: 'Mock optimization.',
-      suggestedQuery: q,
-      explanation: 'Suggestion: add an index on the most-filtered field. '
-          'Real LLM will provide explain-plan-aware advice.',
-    );
-  }
-
-  AiCompletion _mockFix(AiRequest req) {
-    return const AiCompletion(
-      message: 'Mock fix: assumed syntax issue with brackets.',
-      suggestedQuery: 'db.collection.find({ field: "value" })',
-      explanation: 'Fixed bracket syntax. Real LLM will use error-context '
-          'to produce targeted corrections.',
-    );
-  }
-
-  // ─── Safety helpers ───────────────────────────────────────────────
-  String? _containsWriteTarget(AiRequest req) {
-    // Basit sezgisel: kullanıcı mesajı DROP/DELETE/UPDATE/INSERT içeriyorsa
-    // ve context'te bir writeable collection varsa, reddet.
-    final lower = req.userMessage.toLowerCase();
-    final writeHints = ['drop ', 'delete', 'update ', 'insert', 'truncate'];
-    final isWriteIntent = writeHints.any(lower.contains);
-    if (!isWriteIntent) return null;
-    for (final db in req.context.databases) {
-      for (final c in db.collections) {
-        if (c.name != '_internal') return c.name;
+    // 4. Stream → accumulate.
+    final buffer = StringBuffer();
+    try {
+      final stream = repo.streamChatWithGenerationOptions(
+        modelPath!,
+        messages: messages,
+        generationOptions: GenerationOptions(
+          temperature: temperature,
+          maxTokens: maxTokens,
+        ),
+      );
+      await for (final chunk in stream) {
+        final delta = chunk.message?.content;
+        if (delta != null && delta.isNotEmpty) {
+          buffer.write(delta);
+        }
       }
+    } on InferenceException catch (e) {
+      throw AiFailure('Local inference failed: ${e.message}', cause: e);
+    } catch (e) {
+      throw AiFailure('Local model error: $e', cause: e);
     }
-    return null;
+
+    final raw = buffer.toString();
+    return AiPromptBuilder.parseCompletion(raw, request);
+  }
+
+  /// Model'i bellekten boşalt (kullanıcı AI provider'ı değiştirdiğinde).
+  void dispose() {
+    if (_disposed) return;
+    _disposed = true;
+    try {
+      _repository?.dispose();
+    } catch (e) {
+      _log.w('dispose failed: $e');
+    }
+    _repository = null;
+    _log.i('Local model disposed.');
   }
 }

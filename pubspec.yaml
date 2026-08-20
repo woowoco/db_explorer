@@ -4,8 +4,8 @@ publish_to: none
 
 # Tolga'nın kişisel projelerinde kullandığı versiyonlama şeması:
 # <major>.<minor>.<patch>+<build>
-# Phase 6: Redis + Elasticsearch providers (mock + real) (build 7).
-version: 0.7.0+7
+# Phase 7: AI providers real implementation (build 8).
+version: 0.8.0+8
 
 environment:
   sdk: ^3.12.2
@@ -71,8 +71,16 @@ dependencies:
   intl: ^0.19.0
   # permission_handler: ^12.x (Phase 0'da gerek yok)
 
-  # AI local inference — DEFERRED to Phase 7 (llamadart veya llm_llamacpp).
-  # Phase 0 stubs AI provider interfaces'i implement eder, gerçek binding yok.
+  # AI — Phase 7: real implementations of all 3 providers.
+  # Local llama.cpp binding (cross-platform: Android/iOS/macOS/Windows/Linux).
+  llm_llamacpp: ^0.3.1  # Phase 7 — local GGUF inference (off-main-thread via isolate)
+  # llm_core — intermediate types (LLMMessage, LLMRole, LLMChunk) re-exported
+  # by llm_llamacpp; declared here because ai_prompt_builder.dart imports it.
+  llm_core: ^0.3.2      # Phase 7 — shared LLM message types
+  # Remote Ollama HTTP client (pure-Dart, type-safe).
+  ollama_dart: ^2.5.0   # Phase 7 — Ollama /api/chat + /api/generate (NDJSON streaming)
+  # OpenAI-compatible HTTP client (pure-Dart, SSE streaming).
+  openai_dart: ^8.0.0   # Phase 7 — OpenAI, Azure, Together, Groq, LM Studio, vLLM, etc.
 
 dev_dependencies:
   flutter_test:

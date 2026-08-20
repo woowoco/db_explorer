@@ -1,27 +1,63 @@
-import 'dart:math';
+// ignore_for_file: prefer_initializing_formals
+//
+// Private field `_clientFactory` cannot be referenced via
+// `this._clientFactory` in an initializing formal (Dart limitation).
+
+import 'dart:async';
 
 import 'package:db_explorer_app/core/utils/app_error.dart';
 import 'package:db_explorer_app/core/utils/app_logger.dart';
 import 'package:db_explorer_app/domain/ai/ai_provider.dart';
+import 'package:db_explorer_app/infrastructure/ai_providers/ai_prompt_builder.dart';
+import 'package:openai_dart/openai_dart.dart';
 
-/// OpenAI-compatible provider — Phase 1 fake.
+/// OpenAI-compatible provider — Phase 7 real implementation.
 ///
-/// OpenAI API, LM Studio, oobabooga, vLLM, vs. tüm OpenAI-uyumlu
-/// endpoint'ler için jenerik HTTP provider. Phase 1'de HTTP çağrısı
-/// yapılmıyor; sadece canned response. Phase 7'de `http` + bearer auth.
+/// `openai_dart` (trevorwang flavour) paketi ile OpenAI API'sine ve OAuth
+/// uyumlu tüm endpoint'lere (Azure OpenAI, Together AI, Groq, LM Studio,
+/// vLLM, Ollama'nın OpenAI-compatible mode'u, vs.) bağlanır.
+///
+/// Güvenlik (brief 11, 14):
+/// - AI asla write/DDL sorgu önermez (shared `AiPromptBuilder.preflight`).
+/// - AI context = schema-only (NO document values, NO credentials).
+/// - API key asla loglanmaz (redactionList).
 class OpenAiCompatibleProvider implements AiQueryProvider {
-  OpenAiCompatibleProvider({this.endpoint, this.apiKey, this.modelName});
+  OpenAiCompatibleProvider({
+    this.endpoint,
+    this.apiKey,
+    this.modelName,
+    this.temperature = 0.2,
+    this.maxTokens = 1024,
+    this.requestTimeoutSeconds = 60,
+    Future<OpenAIClient> Function()? clientFactory,
+  }) : _clientFactory = clientFactory;
 
-  /// Örn. 'https://api.openai.com/v1' veya 'http://localhost:1234/v1'.
+  /// Örn. `https://api.openai.com/v1`, `https://api.groq.com/openai/v1`,
+  /// `http://localhost:1234/v1` (LM Studio).
   final String? endpoint;
 
-  /// Bearer token. Phase 1'de hiçbir yere gönderilmez (güvenlik).
+  /// Bearer API key. Endpoint default `api.openai.com` ise zorunlu,
+  /// local LM Studio için boş bırakılabilir.
   final String? apiKey;
 
-  /// Model adı (örn. 'gpt-4o-mini', 'qwen2.5-coder:7b').
+  /// Örn. `gpt-4o-mini`, `qwen2.5-coder:7b`, `llama-3.1-8b-instant`.
   final String? modelName;
 
+  /// Sampling temperature.
+  final double temperature;
+
+  /// Üretilecek maksimum token.
+  final int maxTokens;
+
+  /// Request timeout (saniye).
+  final int requestTimeoutSeconds;
+
+  /// Test seam — gerçek istemciyi değiştirir.
+  final Future<OpenAIClient> Function()? _clientFactory;
+
   final _log = getLogger('OpenAICompat');
+
+  OpenAIClient? _client;
 
   @override
   String get id => 'openai_compatible';
@@ -31,7 +67,33 @@ class OpenAiCompatibleProvider implements AiQueryProvider {
 
   @override
   Future<bool> isAvailable() async {
-    return endpoint != null && endpoint!.isNotEmpty;
+    if (endpoint == null || endpoint!.isEmpty) return false;
+    if (modelName == null || modelName!.isEmpty) return false;
+    return true;
+  }
+
+  Future<OpenAIClient> _ensureClient() async {
+    final cached = _client;
+    if (cached != null) return cached;
+    if (endpoint == null || endpoint!.isEmpty) {
+      throw const AiFailure(
+        'OpenAI-compatible endpoint not configured. Set endpoint in Settings.',
+      );
+    }
+    final factory = _clientFactory;
+    final client = factory != null
+        ? await factory()
+        : OpenAIClient(
+            config: OpenAIConfig(
+              baseUrl: endpoint!,
+              authProvider: apiKey != null && apiKey!.isNotEmpty
+                  ? ApiKeyProvider(apiKey!)
+                  : null,
+              timeout: Duration(seconds: requestTimeoutSeconds),
+            ),
+          );
+    _client = client;
+    return client;
   }
 
   @override
@@ -44,66 +106,68 @@ class OpenAiCompatibleProvider implements AiQueryProvider {
         'OpenAI-compatible endpoint not configured. Set endpoint in Settings.',
       );
     }
-
-    // Cloud latency simulation: 400-1200ms.
-    await Future<void>.delayed(
-      Duration(milliseconds: 400 + Random().nextInt(800)),
-    );
-
-    // Güvenlik: API key asla loglanmaz.
-    _log.i(
-      'Mock OpenAI call (endpoint configured, key redacted) '
-      'model=$modelName task=${request.task}',
-    );
-
-    return _buildResponse(request);
-  }
-
-  AiCompletion _buildResponse(AiRequest req) {
-    final lower = req.userMessage.toLowerCase();
-    final isWrite = ['drop ', 'delete', 'update ', 'insert', 'truncate']
-        .any(lower.contains);
-    if (isWrite) {
-      return const AiCompletion(
-        message: 'Refusing to generate write/DDL query.',
-        suggestedQuery: '',
-        explanation: 'AI safety: only read-only queries are suggested.',
-        warnings: ['Write rejected'],
+    if (modelName == null || modelName!.isEmpty) {
+      throw const AiFailure(
+        'OpenAI model not configured. Set model name in Settings.',
       );
     }
 
-    switch (req.task) {
-      case AiTask.generate:
-        return const AiCompletion(
-          message: 'Mock OpenAI generated SQL/Mongo query.',
-          suggestedQuery: 'SELECT * FROM users WHERE active = TRUE LIMIT 100',
-          explanation: 'Generated read-only query targeting active users. '
-              'Real model would use schema context for precise field names.',
-        );
-      case AiTask.modify:
-        return const AiCompletion(
-          message: 'Mock OpenAI modified.',
-          suggestedQuery: 'SELECT id, name, email FROM users WHERE active = TRUE',
-          explanation: 'Reduced columns; narrowed result set.',
-        );
-      case AiTask.explain:
-        return AiCompletion(
-          message: 'Mock OpenAI explanation.',
-          suggestedQuery: req.existingQuery ?? '',
-          explanation: 'Will use real explain plan analysis in Phase 7.',
-        );
-      case AiTask.optimize:
-        return AiCompletion(
-          message: 'Mock OpenAI optimization.',
-          suggestedQuery: req.existingQuery ?? '',
-          explanation: 'Suggested composite index based on WHERE+ORDER BY columns.',
-        );
-      case AiTask.fix:
-        return const AiCompletion(
-          message: 'Mock OpenAI fix.',
-          suggestedQuery: r'SELECT * FROM users WHERE id = $1',
-          explanation: 'Parameterized query (safer than string concat).',
-        );
+    // 1. Write-intent guard.
+    final guard = AiPromptBuilder.preflight(request);
+    if (guard != null) return guard;
+
+    // 2. Client hazırla.
+    final client = await _ensureClient();
+
+    // 3. Chat messages kur.
+    final messages = [
+      ChatMessage.system(AiPromptBuilder.systemPrompt(request)),
+      ChatMessage.user(AiPromptBuilder.userPrompt(request)),
+    ];
+
+    // 4. Streaming istek.
+    final buffer = StringBuffer();
+    try {
+      final stream = client.chat.completions.createStream(
+        ChatCompletionCreateRequest(
+          model: modelName!,
+          messages: messages,
+          temperature: temperature,
+          maxTokens: maxTokens,
+        ),
+      );
+      await for (final event in stream) {
+        final choices = event.choices;
+        if (choices != null && choices.isNotEmpty) {
+          final delta = choices.first.delta.content;
+          if (delta != null && delta.isNotEmpty) {
+            buffer.write(delta);
+          }
+        }
+      }
+    } on ApiException catch (e) {
+      throw AiFailure('OpenAI API error: ${e.message}', cause: e);
+    } on TimeoutException catch (e) {
+      throw AiFailure(
+        'OpenAI request timed out after ${requestTimeoutSeconds}s',
+        cause: e,
+      );
+    } catch (e) {
+      throw AiFailure('OpenAI request failed: $e', cause: e);
     }
+
+    final raw = buffer.toString();
+    return AiPromptBuilder.parseCompletion(raw, request);
+  }
+
+  /// HTTP client'ı kapat (kullanıcı provider değiştirdiğinde).
+  void dispose() {
+    try {
+      _client?.close();
+    } catch (e) {
+      _log.w('dispose failed: $e');
+    }
+    _client = null;
+    _log.i('OpenAI client disposed.');
   }
 }
