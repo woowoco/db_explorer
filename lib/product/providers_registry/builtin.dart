@@ -1,14 +1,13 @@
 import 'package:db_explorer_app/domain/database/connection.dart';
 import 'package:db_explorer_app/infrastructure/ai_providers/disabled.dart';
-import 'package:db_explorer_app/infrastructure/ai_providers/local_llamacpp.dart';
-import 'package:db_explorer_app/infrastructure/ai_providers/ollama_remote.dart';
-import 'package:db_explorer_app/infrastructure/ai_providers/openai_compatible.dart';
 import 'package:db_explorer_app/infrastructure/database_providers/elasticsearch/elasticsearch_provider.dart';
 import 'package:db_explorer_app/infrastructure/database_providers/mongodb/mongodb_provider.dart';
 import 'package:db_explorer_app/infrastructure/database_providers/postgres/postgres_provider.dart';
 import 'package:db_explorer_app/infrastructure/database_providers/redis/redis_provider.dart';
 import 'package:db_explorer_app/infrastructure/registry/ai_provider_registry.dart';
 import 'package:db_explorer_app/infrastructure/registry/database_provider_registry.dart';
+import 'package:db_explorer_app/infrastructure/storage/settings.dart';
+import 'package:db_explorer_app/product/providers_registry/real_ai_factories.dart';
 
 /// Built-in provider factory registrations.
 ///
@@ -23,13 +22,20 @@ import 'package:db_explorer_app/infrastructure/registry/database_provider_regist
 /// - `settings.useRealRedisDriver` → `RealRedisProviderFactory`
 /// - `settings.useRealElasticsearchDriver` → `RealElasticsearchProviderFactory`
 ///
-/// Phase 8 release prep'te wiring tamamlanacak.
+/// **AI binding (Phase 8)**: `AppSettings.aiMode` değerine göre
+/// `RealAiProviderFactory` üzerinden tek bir provider seçilir ve
+/// `DisabledProvider` her zaman fallback olarak register edilir.
 ///
 /// NOT: Registry `Map<DatabaseKind, ...>` olduğu için aynı kind için
 /// iki factory kaydedilirse sonuncusu kazanır (mock → real override).
-void registerBuiltinProviders() {
+/// AI registry'si sıralı liste; ilk available provider kullanılır.
+void registerBuiltinProviders(AppSettings settings) {
   _registerDatabase();
-  _registerAi();
+  _registerAi(settings);
+  // Sensitive pattern'leri AiPromptBuilder'a push et (bir kez, app boot'ta).
+  // Kullanıcı Settings'i değiştirirse `applySensitiveFieldPatterns()`
+  // tekrar çağrılabilir (manual re-apply için).
+  applySensitiveFieldPatterns(settings);
 }
 
 /// Database provider factory kayıtları.
@@ -60,11 +66,27 @@ void _registerDatabase() {
   }
 }
 
-/// AI provider factory kayıtları.
-void _registerAi() {
+/// AI provider factory kayıtları (Phase 8 — Settings-driven).
+///
+/// `AppSettings.aiMode`:
+/// - `local` → `RealAiProviderFactory.buildLocalLlamaCpp()`
+/// - `ollamaRemote` → `RealAiProviderFactory.buildOllamaRemote()`
+/// - `openaiCompatible` → `RealAiProviderFactory.buildOpenAiCompatible()`
+/// - `disabled` (default) → yalnızca `DisabledProvider`
+///
+/// `DisabledProvider` her zaman fallback olarak register edilir — bu
+/// sayede kullanıcı bir mode seçmemişse bile registry boş değildir ve
+/// `defaultProvider()` her zaman bir sonuç döner.
+void _registerAi(AppSettings settings) {
   final aiRegistry = AiProviderRegistry.instance;
-  aiRegistry.register(const DisabledProvider()); // default — AI kapalı
-  aiRegistry.register(LocalLlamaCppProvider()); // Phase 7+
-  aiRegistry.register(OllamaRemoteProvider()); // Phase 7+
-  aiRegistry.register(OpenAiCompatibleProvider()); // Phase 7+
+  aiRegistry.clear();
+
+  // Fallback — her zaman register (default available provider).
+  aiRegistry.register(const DisabledProvider());
+
+  // Kullanıcı seçimine göre aktif provider.
+  final selected = RealAiProviderFactory(settings).buildFromSettings();
+  if (selected != null) {
+    aiRegistry.register(selected);
+  }
 }

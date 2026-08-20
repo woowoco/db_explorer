@@ -46,7 +46,9 @@ class AppBootstrap {
     final getIt = GetIt.instance;
     GetItInjections.registerSync(getIt);
     await GetItInjections.registerAsync(getIt);
-    GetItInjections.registerProviders();
+    // Settings async init sonrası hazır; provider registration'da
+    // AppSettings.aiMode'a göre aktif AI provider seçilecek.
+    GetItInjections.registerProviders(getIt<AppSettings>());
     log.i('GetIt + providers registered');
 
     // Smoke test — storage layer çalışıyor mu?

@@ -1,4 +1,5 @@
 import 'package:db_explorer_app/domain/database/connection.dart';
+import 'package:db_explorer_app/infrastructure/ai_providers/disabled.dart';
 import 'package:db_explorer_app/infrastructure/registry/ai_provider_registry.dart';
 import 'package:db_explorer_app/infrastructure/registry/database_provider_registry.dart';
 import 'package:db_explorer_app/infrastructure/storage/settings.dart';
@@ -8,9 +9,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  group('Phase 0 Skeleton Smoke', () {
-    setUpAll(() {
-      registerBuiltinProviders();
+  group('Phase 0 / 8 Skeleton Smoke', () {
+    late AppSettings settings;
+
+    setUpAll(() async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final prefs = await SharedPreferences.getInstance();
+      settings = AppSettings(prefs);
+      // Default aiMode = disabled → registry yalnızca DisabledProvider
+      // içerecek + active provider seçilmeyecek.
+      registerBuiltinProviders(settings);
     });
 
     test('All 4 kind provider factories registered', () {
@@ -35,18 +43,23 @@ void main() {
       expect(provider.capabilities.isReadOnly, isFalse);
     });
 
-    test('AI provider registry has all 4 providers', () {
+    test('AI provider registry has DisabledProvider (default available)', () {
       final registry = AiProviderRegistry.instance;
-      expect(registry.all.length, 4);
+      // Default aiMode = disabled → registry 1 kayıt içerir.
+      expect(registry.all.length, 1);
       expect(registry.byId('disabled'), isNotNull);
-      expect(registry.byId('local_llamacpp'), isNotNull);
-      expect(registry.byId('ollama_remote'), isNotNull);
-      expect(registry.byId('openai_compatible'), isNotNull);
+      // Aktif provider seçilmemiş (mode = disabled).
+      expect(
+        registry.byId('local_llamacpp'),
+        isNull,
+        reason: 'When aiMode=disabled, real providers must NOT be registered',
+      );
     });
 
     test('Disabled AI provider is always available (default)', () async {
       final registry = AiProviderRegistry.instance;
       final disabled = registry.byId('disabled')!;
+      expect(disabled, isA<DisabledProvider>());
       expect(await disabled.isAvailable(), isTrue);
     });
 

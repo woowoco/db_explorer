@@ -1,3 +1,4 @@
+import 'package:db_explorer_app/infrastructure/storage/settings.dart';
 import 'package:db_explorer_app/product/init/getIt/modules/ai_module.dart';
 import 'package:db_explorer_app/product/init/getIt/modules/core_module.dart';
 import 'package:db_explorer_app/product/init/getIt/modules/database_module.dart';
@@ -31,7 +32,10 @@ class GetItInjections {
   }
 
   /// Built-in provider factory'leri registry'lere yaz.
-  static void registerProviders() {
-    registerBuiltinProviders();
+  ///
+  /// `settings.aiMode`'a göre AI provider seçimi yapılır; sensitive
+  /// field pattern'leri `AiPromptBuilder`'a push edilir.
+  static void registerProviders(AppSettings settings) {
+    registerBuiltinProviders(settings);
   }
 }

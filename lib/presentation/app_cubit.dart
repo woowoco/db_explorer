@@ -6,34 +6,34 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 class AppState extends Equatable {
   const AppState({
     required this.aiMode,
-    required this.aiModelPath,
+    required this.aiLocalModelPath,
     required this.telemetryOptIn,
     required this.historyTtlDays,
-    this.buildVersion = '0.1.0+1',
+    this.buildVersion = '0.8.0+8',
   });
 
   final AiMode aiMode;
-  final String? aiModelPath;
+  final String? aiLocalModelPath;
   final bool telemetryOptIn;
   final int historyTtlDays;
   final String buildVersion;
 
   static const AppState initial = AppState(
     aiMode: AiMode.disabled,
-    aiModelPath: null,
+    aiLocalModelPath: null,
     telemetryOptIn: false,
     historyTtlDays: 30,
   );
 
   AppState copyWith({
     AiMode? aiMode,
-    String? aiModelPath,
+    String? aiLocalModelPath,
     bool? telemetryOptIn,
     int? historyTtlDays,
   }) {
     return AppState(
       aiMode: aiMode ?? this.aiMode,
-      aiModelPath: aiModelPath ?? this.aiModelPath,
+      aiLocalModelPath: aiLocalModelPath ?? this.aiLocalModelPath,
       telemetryOptIn: telemetryOptIn ?? this.telemetryOptIn,
       historyTtlDays: historyTtlDays ?? this.historyTtlDays,
       buildVersion: buildVersion,
@@ -43,7 +43,7 @@ class AppState extends Equatable {
   @override
   List<Object?> get props => [
     aiMode,
-    aiModelPath,
+    aiLocalModelPath,
     telemetryOptIn,
     historyTtlDays,
     buildVersion,
@@ -58,7 +58,7 @@ class AppCubit extends Cubit<AppState> {
   static AppState _initialState(AppSettings settings) {
     return AppState(
       aiMode: settings.aiMode,
-      aiModelPath: settings.aiModelPath,
+      aiLocalModelPath: settings.aiLocalModelPath,
       telemetryOptIn: settings.telemetryOptIn,
       historyTtlDays: settings.historyTtlDays,
     );
@@ -69,10 +69,10 @@ class AppCubit extends Cubit<AppState> {
     emit(state.copyWith(aiMode: mode));
   }
 
-  Future<void> setAiModelPath(String? path) async {
+  Future<void> setAiLocalModelPath(String? path) async {
     if (path == null) return;
-    await _settings.setAiModelPath(path);
-    emit(state.copyWith(aiModelPath: path));
+    await _settings.setAiLocalModelPath(path);
+    emit(state.copyWith(aiLocalModelPath: path));
   }
 
   Future<void> setTelemetryOptIn(bool enabled) async {
