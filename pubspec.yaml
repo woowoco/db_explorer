@@ -4,8 +4,8 @@ publish_to: none
 
 # Tolga'nın kişisel projelerinde kullandığı versiyonlama şeması:
 # <major>.<minor>.<patch>+<build>
-# Phase 4: Workspace (query editor + results grid) (build 5).
-version: 0.5.0+5
+# Phase 5: PostgreSQL provider (mock + real) (build 6).
+version: 0.6.0+6
 
 environment:
   sdk: ^3.12.2
@@ -43,6 +43,9 @@ dependencies:
 
   # Database — MongoDB (mvp provider)
   mongo_dart: ^0.10.8  # Phase 3 — real driver (pure-Dart)
+
+  # Database — PostgreSQL (Phase 5+ provider)
+  postgres: ^3.5.0  # Phase 5 — pure-Dart PG driver (isoos/stablekernel)
 
   # Code editor (query editor için) — Phase 4 devreye girdi.
   # `highlight` paketi (language Mode tanımları) doğrudan dependency olarak

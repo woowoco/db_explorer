@@ -149,6 +149,21 @@ class SecureConnectionStore {
         'directConnection': profile.directConnection,
         'serverSelectionTimeoutMs': profile.serverSelectionTimeoutMs,
       },
+      PostgresConnectionProfile() => {
+        'kind': 'postgres',
+        'id': profile.id,
+        'label': profile.label,
+        'host': profile.host,
+        'port': profile.port,
+        'databaseName': profile.databaseName,
+        'username': profile.username,
+        'options': profile.options,
+        'password': profile.password,
+        'sslMode': profile.sslMode.storageValue,
+        'applicationName': profile.applicationName,
+        'connectTimeoutSeconds': profile.connectTimeoutSeconds,
+        'statementTimeoutSeconds': profile.statementTimeoutSeconds,
+      },
     };
   }
 
@@ -170,7 +185,30 @@ class SecureConnectionStore {
         directConnection: (json['directConnection'] as bool?) ?? false,
         serverSelectionTimeoutMs: json['serverSelectionTimeoutMs'] as int?,
       ),
+      'postgres' => PostgresConnectionProfile(
+        id: json['id'] as String,
+        label: json['label'] as String,
+        host: json['host'] as String,
+        port: (json['port'] as int?) ?? 5432,
+        databaseName: json['databaseName'] as String,
+        username: json['username'] as String?,
+        options: (json['options'] as Map?)?.cast<String, String>() ?? const {},
+        password: json['password'] as String?,
+        sslMode: _sslModeFromJson(json['sslMode'] as String?),
+        applicationName: json['applicationName'] as String?,
+        connectTimeoutSeconds: json['connectTimeoutSeconds'] as int?,
+        statementTimeoutSeconds: json['statementTimeoutSeconds'] as int?,
+      ),
       _ => throw ArgumentError('Unknown profile kind: $kind'),
+    };
+  }
+
+  PostgresSslMode _sslModeFromJson(String? value) {
+    return switch (value) {
+      'disable' => PostgresSslMode.disable,
+      'require' => PostgresSslMode.require,
+      'verify-full' => PostgresSslMode.verifyFull,
+      _ => PostgresSslMode.require,
     };
   }
 }
