@@ -21,7 +21,7 @@ void registerBuiltinProviders() {
 void _registerDatabase() {
   final dbRegistry = DatabaseProviderRegistry.instance;
   if (!dbRegistry.isRegistered(DatabaseKind.mongodb)) {
-    dbRegistry.register(MongoDBProviderFactory());
+    dbRegistry.register(const MongoDBProviderFactory());
   }
 }
 
@@ -29,7 +29,7 @@ void _registerDatabase() {
 void _registerAi() {
   final aiRegistry = AiProviderRegistry.instance;
   aiRegistry.register(const DisabledProvider()); // default — AI kapalı
-  aiRegistry.register(const LocalLlamaCppProvider()); // Phase 7+
-  aiRegistry.register(const OllamaRemoteProvider()); // Phase 7+
-  aiRegistry.register(const OpenAiCompatibleProvider()); // Phase 7+
+  aiRegistry.register(LocalLlamaCppProvider()); // Phase 7+
+  aiRegistry.register(OllamaRemoteProvider()); // Phase 7+
+  aiRegistry.register(OpenAiCompatibleProvider()); // Phase 7+
 }

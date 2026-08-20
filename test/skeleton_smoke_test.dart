@@ -78,7 +78,7 @@ void main() {
         sessionId: 'sess-1',
         at: DateTime.fromMillisecondsSinceEpoch(0),
       );
-      const error = ErrorConnection('boom');
+      const error = ErrorConnection(message: 'boom');
       expect(idle, isA<IdleConnection>());
       expect(connecting, isA<ConnectingConnection>());
       expect(connected, isA<ConnectedConnection>());
