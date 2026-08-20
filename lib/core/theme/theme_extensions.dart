@@ -379,8 +379,7 @@ class EditorPalette extends ThemeExtension<EditorPalette> {
   final Color nullValue; // null
   final Color operator; // :, =, ==, !=, <, >
   final Color identifier; // field names, variable names
-  @override
-  final Color type; // ObjectId, ISODate
+  final Color dataType; // ObjectId, ISODate
   final Color comment; // // comment
   final Color function; // $sum, $avg, $count
   final Color brackets; // {} []
@@ -399,7 +398,7 @@ class EditorPalette extends ThemeExtension<EditorPalette> {
     required this.nullValue,
     required this.operator,
     required this.identifier,
-    required this.type,
+    required this.dataType,
     required this.comment,
     required this.function,
     required this.brackets,
@@ -419,7 +418,7 @@ class EditorPalette extends ThemeExtension<EditorPalette> {
     nullValue: Color(0xFF569CD6), // blue
     operator: Color(0xFFD4D4D4), // foreground
     identifier: Color(0xFF9CDCFE), // light blue
-    type: Color(0xFF4EC9B0), // teal
+    dataType: Color(0xFF4EC9B0), // teal
     comment: Color(0xFF6A9955), // green
     function: Color(0xFFDCDCAA), // yellow
     brackets: Color(0xFFD4D4D4), // foreground
@@ -439,7 +438,7 @@ class EditorPalette extends ThemeExtension<EditorPalette> {
     nullValue: Color(0xFF0000FF), // blue
     operator: Color(0xFF000000),
     identifier: Color(0xFF001080), // dark blue
-    type: Color(0xFF267F99), // teal
+    dataType: Color(0xFF267F99), // teal
     comment: Color(0xFF008000), // green
     function: Color(0xFF795E26), // brown
     brackets: Color(0xFF000000),
@@ -459,7 +458,7 @@ class EditorPalette extends ThemeExtension<EditorPalette> {
     Color? nullValue,
     Color? operator,
     Color? identifier,
-    Color? type,
+    Color? dataType,
     Color? comment,
     Color? function,
     Color? brackets,
@@ -477,7 +476,7 @@ class EditorPalette extends ThemeExtension<EditorPalette> {
       nullValue: nullValue ?? this.nullValue,
       operator: operator ?? this.operator,
       identifier: identifier ?? this.identifier,
-      type: type ?? this.type,
+      dataType: dataType ?? this.dataType,
       comment: comment ?? this.comment,
       function: function ?? this.function,
       brackets: brackets ?? this.brackets,
@@ -506,7 +505,7 @@ class EditorPalette extends ThemeExtension<EditorPalette> {
       nullValue: Color.lerp(nullValue, other.nullValue, t)!,
       operator: Color.lerp(operator, other.operator, t)!,
       identifier: Color.lerp(identifier, other.identifier, t)!,
-      type: Color.lerp(type, other.type, t)!,
+      dataType: Color.lerp(dataType, other.dataType, t)!,
       comment: Color.lerp(comment, other.comment, t)!,
       function: Color.lerp(function, other.function, t)!,
       brackets: Color.lerp(brackets, other.brackets, t)!,

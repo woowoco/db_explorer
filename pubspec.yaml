@@ -4,8 +4,8 @@ publish_to: none
 
 # Tolga'nın kişisel projelerinde kullandığı versiyonlama şeması:
 # <major>.<minor>.<patch>+<build>
-# Phase 3: Real MongoDB driver binding (build 4).
-version: 0.4.0+4
+# Phase 4: Workspace (query editor + results grid) (build 5).
+version: 0.5.0+5
 
 environment:
   sdk: ^3.12.2
@@ -44,8 +44,12 @@ dependencies:
   # Database — MongoDB (mvp provider)
   mongo_dart: ^0.10.8  # Phase 3 — real driver (pure-Dart)
 
-  # Code editor (query editor için) — Phase 0'da import edilmez, Phase 4'te devreye girer
-  # flutter_code_editor: <resolved at Phase 4>
+  # Code editor (query editor için) — Phase 4 devreye girdi.
+  # `highlight` paketi (language Mode tanımları) doğrudan dependency olarak
+  # eklenmeli (depend_on_referenced_packages lint) — flutter_code_editor da
+  # aynı major'ı kullanır.
+  flutter_code_editor: ^0.3.4
+  highlight: ^0.7.0
 
   # Storage — Phase 0 stub'lar gerçek binding kullanır (smoke test için).
   flutter_secure_storage: ^10.0.0
