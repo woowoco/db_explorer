@@ -9,9 +9,17 @@ import 'package:db_explorer_app/infrastructure/registry/database_provider_regist
 
 /// Built-in provider factory registrations.
 ///
-/// MongoDB MVP için sadece MongoDBProviderFactory.
-/// Diğer provider factory'leri ileriki fazlarda (PostgresPhase 5, Redis
-/// Phase 6) eklenecek.
+/// Varsayılan: MongoDBProviderFactory (Phase 1 mock — geliştirme/test
+/// için in-memory seed data).
+///
+/// **Production binding**: Gerçek `mongo_dart` driver kullanan
+/// `RealMongoDBProviderFactory` (`lib/infrastructure/database_providers/
+/// mongodb/real_mongodb_provider.dart`) — AppBootstrap'ta feature flag
+/// (`settings.useRealMongoDriver`) ile mock'un yerini alır. Phase 8
+/// release prep'te wiring tamamlanacak.
+///
+/// Diğer provider factory'leri ileriki fazlarda (Postgres Phase 5,
+/// Redis Phase 6) eklenecek.
 void registerBuiltinProviders() {
   _registerDatabase();
   _registerAi();

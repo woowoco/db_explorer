@@ -4,8 +4,8 @@ publish_to: none
 
 # Tolga'nın kişisel projelerinde kullandığı versiyonlama şeması:
 # <major>.<minor>.<patch>+<build>
-# Phase 0 skeleton (build 1).
-version: 0.1.0+1
+# Phase 3: Real MongoDB driver binding (build 4).
+version: 0.4.0+4
 
 environment:
   sdk: ^3.12.2
@@ -42,7 +42,7 @@ dependencies:
   rxdart: ^0.28.0
 
   # Database — MongoDB (mvp provider)
-  # mongo_dart_flutter: <resolved at Phase 0 first run>
+  mongo_dart: ^0.10.8  # Phase 3 — real driver (pure-Dart)
 
   # Code editor (query editor için) — Phase 0'da import edilmez, Phase 4'te devreye girer
   # flutter_code_editor: <resolved at Phase 4>

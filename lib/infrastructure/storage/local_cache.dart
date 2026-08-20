@@ -245,7 +245,7 @@ class LocalCache {
     }
     final storage = _secureStorage;
     if (storage == null) {
-      throw StorageFailure(
+      throw const StorageFailure(
         'LocalCache not configured: no secureStorage or testKey',
       );
     }
