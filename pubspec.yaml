@@ -4,8 +4,8 @@ publish_to: none
 
 # Tolga'nın kişisel projelerinde kullandığı versiyonlama şeması:
 # <major>.<minor>.<patch>+<build>
-# Phase 7: AI providers real implementation (build 8).
-version: 0.8.0+8
+# Phase 8: Public release prep — Real*ProviderFactory + Settings UI + cross-platform build (build 9).
+version: 0.9.0+9
 
 environment:
   sdk: ^3.12.2
